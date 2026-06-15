@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioSim - 호르몬 및 신경전달물질 상호작용 시뮬레이터</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* CSS Variables for Dynamic Color Theme */
+        :root {
+            --accent-primary: #a855f7; /* Dopamine Purple default */
+            --accent-secondary: #14b8a6; /* Dopamine Teal default */
+            --accent-glow: rgba(168, 85, 247, 0.3);
+            --bg-dark: #070a13;
+            --bg-card: rgba(13, 20, 35, 0.65);
+            --bg-sidebar: rgba(10, 15, 26, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-glow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Reset & Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(20, 30, 60, 0.3) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(30, 20, 50, 0.35) 0%, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        /* Glassmorphism Common Styles */
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: border-color 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+
+        /* Dashboard Layout */
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 380px;
+            gap: 20px;
+            height: 100vh;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        /* Left Sidebar - Menu */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--bg-sidebar);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .brand-logo i {
+            color: var(--accent-primary);
+            filter: drop-shadow(0 0 8px var(--accent-primary));
+            transition: color 0.5s ease, filter 0.5s ease;
+        }
+
+        .menu-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .substance-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            list-style: none;
+        }
+
+        .substance-item {
+            width: 100%;
+        }
+
+        .substance-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: left;
+        }
+
+        .substance-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+        }
+
+        .substance-btn.active {
+            background: var(--accent-glow);
+            color: #fff;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2), inset 0 0 8px rgba(255, 255, 255, 0.1);
+            font-weight: 600;
+        }
+
+        .substance-btn .substance-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .substance-btn .substance-name {
+            font-size: 0.95rem;
+        }
+
+        .substance-btn .substance-type {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+        .substance-btn .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            box-shadow: 0 0 6px var(--text-muted);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .substance-btn.active .status-dot {
+            background: var(--accent-secondary);
+            box-shadow: 0 0 10px var(--accent-secondary);
+        }
+
+        /* Center Column - Simulator & Graphs */
+        .center-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* Header Card */
+        .simulator-header {
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mol-title-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .mol-icon-wrapper {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-primary);
+            filter: drop-shadow(0 0 5px var(--accent-glow));
+            font-size: 1.5rem;
+        }
+
+        .mol-meta h2 {
+            font-size: 1.6rem;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .mol-meta p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Control Panel Card */
+        .control-panel {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 8px;
+        }
+
+        .control-label span.value-highlight {
+            color: var(--accent-primary);
+            text-shadow: var(--text-glow);
+            text-transform: none;
+            letter-spacing: 0;
+            font-size: 0.95rem;
+        }
+
+        /* Styled Secretion Slider */
+        .slider-container {
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .styled-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            transition: background 0.3s;
+        }
+
+        .styled-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            border: 3px solid #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-primary);
+            transition: transform 0.1s, background-color 0.3s;
+        }
+
+        .styled-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-ticks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .slider-ticks span {
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .slider-ticks span:hover {
+            color: #fff;
+        }
+
+        /* Pharmacology Select Card */
+        .pharma-select-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pharma-dropdown {
+            width: 100%;
+            background: rgba(10, 15, 30, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #fff;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .pharma-dropdown:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .pharma-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-secondary);
+        }
+
+        /* Pathway Visualization Card */
+        .pathway-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex-grow: 1;
+            min-height: 380px;
+        }
+
+        .pathway-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pathway-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pathway-title i {
+            color: var(--accent-primary);
+        }
+
+        .svg-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+            background: rgba(5, 7, 15, 0.6);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .pathway-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* SVG Inner Animation Styles */
+        .cell-membrane {
+            stroke: #334155;
+            stroke-width: 4;
+            fill: #1e293b;
+        }
+        .membrane-lipid {
+            fill: #475569;
+            opacity: 0.6;
+        }
+        .receptor-base {
+            fill: #4b5563;
+            transition: fill 0.5s, stroke 0.5s;
+            stroke-width: 2;
+        }
+        .receptor-glow {
+            fill: none;
+            stroke-width: 4;
+            opacity: 0;
+            transition: opacity 0.5s, stroke 0.5s;
+        }
+        .g-protein-alpha, .g-protein-beta, .g-protein-gamma {
+            transition: transform 0.5s ease, fill 0.5s;
+        }
+        .adenylyl-cyclase {
+            fill: #334155;
+            transition: fill 0.5s, stroke 0.5s;
+            stroke-width: 2;
+        }
+
+        /* Pulsing & Floating Keyframes */
+        @keyframes pulse-glow {
+            0% { filter: drop-shadow(0 0 2px var(--accent-primary)); opacity: 0.5; }
+            100% { filter: drop-shadow(0 0 10px var(--accent-primary)); opacity: 1; }
+        }
+
+        @keyframes float-ligand {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(5px, -5px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes flow-camp {
+            0% { transform: translateY(0px) scale(0.6); opacity: 0; }
+            30% { opacity: 0.9; }
+            100% { transform: translateY(50px) scale(1); opacity: 0; }
+        }
+
+        @keyframes glucose-flow {
+            0% { transform: translateY(-40px); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(60px); opacity: 0.2; }
+        }
+
+        @keyframes rtk-dimerize-left {
+            0% { transform: translateX(-20px); }
+            100% { transform: translateX(0px); }
+        }
+        @keyframes rtk-dimerize-right {
+            0% { transform: translateX(20px); }
+            100% { transform: translateX(0px); }
+        }
+
+        @keyframes dna-transcribe {
+            0% { stroke-dashoffset: 100; opacity: 0.3; }
+            100% { stroke-dashoffset: 0; opacity: 1; }
+        }
+
+        /* SVG Class modifiers dynamically added via JS */
+        .svg-active .receptor-glow {
+            opacity: 1;
+            stroke: var(--accent-primary);
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+        .svg-active rect.receptor-base,
+        .svg-active circle.receptor-base {
+            fill: var(--accent-primary);
+            stroke: #fff;
+        }
+        .svg-active path.receptor-base {
+            stroke: var(--accent-primary);
+            filter: drop-shadow(0 0 5px var(--accent-primary));
+        }
+        .svg-active .effector-active {
+            fill: var(--accent-secondary);
+            stroke: #fff;
+            filter: drop-shadow(0 0 8px var(--accent-secondary));
+        }
+
+        .ligand-dot {
+            animation: float-ligand 3s infinite ease-in-out;
+        }
+
+        .camp-particle {
+            fill: var(--accent-secondary);
+            animation: flow-camp 1.5s infinite linear;
+            display: none;
+        }
+
+        .glucose-particle {
+            fill: #facc15;
+            animation: glucose-flow 2s infinite linear;
+            display: none;
+        }
+
+        .svg-active .camp-particle {
+            display: block;
+        }
+
+        .svg-active .glucose-particle {
+            display: block;
+        }
+
+        .dna-rna-line {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            transition: opacity 0.5s;
+        }
+        .svg-active .dna-rna-line {
+            animation: dna-transcribe 3s infinite linear;
+        }
+
+        /* Chart Panel Card */
+        .chart-card {
+            padding: 24px;
+            height: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Right Column - Mechanism Info Cards */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .info-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .info-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 12px;
+        }
+
+        .info-header i {
+            color: var(--accent-primary);
+        }
+
+        /* Organ Map Badge */
+        .organ-map {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .organ-badge {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .organ-badge-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .organ-badge-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .organ-badge-value i {
+            font-size: 1rem;
+            color: var(--accent-secondary);
+        }
+
+        /* Step by Step mechanism pathway */
+        .mech-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .mech-step-item {
+            display: flex;
+            gap: 12px;
+            position: relative;
+        }
+
+        .mech-step-item::after {
+            content: '';
+            position: absolute;
+            left: 14px;
+            top: 28px;
+            bottom: -18px;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mech-step-item:last-child::after {
+            display: none;
+        }
+
+        .mech-step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .mech-step-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding-top: 4px;
+        }
+
+        .mech-step-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .mech-step-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Metrics Display Progress Bars */
+        .metrics-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .metric-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .metric-label {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .metric-state-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .metric-track {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .metric-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
+            box-shadow: 0 0 10px var(--accent-glow);
+            width: 50%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* State colors */
+        .state-normal { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .state-warning { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .state-danger { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+        /* Clinical info box */
+        .clinical-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .clinical-box-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .clinical-box-title i {
+            color: var(--accent-primary);
+        }
+
+        .clinical-text {
+            color: var(--text-muted);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1400px) {
+            .app-container {
+                grid-template-columns: 240px 1fr 340px;
+                gap: 16px;
+                padding: 16px;
+                height: auto;
+            }
+            .sidebar, .center-column, .right-column {
+                height: auto;
+                overflow-y: visible;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Left Sidebar: Selection Menu -->
+        <aside class="sidebar">
+            <div class="brand-logo">
+                <i data-lucide="activity"></i>
+                <span>BioSim Lab</span>
+            </div>
+            
+            <div class="menu-title">시뮬레이션 물질 선택</div>
+            <ul class="substance-list" id="substanceList">
+                <!-- Javascript will render items here dynamically -->
+            </ul>
+        </aside>
+
+        <!-- Center Column: Simulator & Real-time Graph -->
+        <main class="center-column">
+            
+            <!-- Molecule Header Card -->
+            <section class="glass-panel simulator-header">
+                <div class="mol-title-area">
+                    <div class="mol-icon-wrapper" id="molIconWrapper">
+                        <i data-lucide="brain"></i>
+                    </div>
+                    <div class="mol-meta">
+                        <h2 id="molName">도파민</h2>
+                        <p id="molEnglishName">Dopamine (DA) — Monoamine Neurotransmitter</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secretion Simulator & Pharmacology controls -->
+            <section class="glass-panel control-panel">
+                <!-- Secretion level slider -->
+                <div class="control-section">
+                    <div class="control-label">
+                        <span>분비량 조절 (Secretion)</span>
+                        <span class="value-highlight" id="sliderValDisplay">100% (정상)</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="200" value="100" class="styled-slider" id="secretionSlider">
+                        <div class="slider-ticks">
+                            <span onclick="setSecretion(0)">결핍 (0%)</span>
+                            <span onclick="setSecretion(100)">정상 (100%)</span>
+                            <span onclick="setSecretion(200)">과다 (200%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pharmacological Agonists/Antagonists selector -->
+                <div class="control-section">
+                    <div class="control-label">
+                        <span>약리학적 개입 (Pharmacology)</span>
+                    </div>
+                    <div class="pharma-select-wrapper">
+                        <select class="pharma-dropdown" id="pharmaDropdown">
+                            <!-- Javascript will populate based on current substance -->
+                        </select>
+                        <div class="pharma-desc" id="pharmaDescription">
+                            약물이 인가되지 않은 대조군(Control) 상태입니다. 호르몬이 수용체에 정상적으로 결합하여 생리적 신호를 전달합니다.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dynamic Molecular Pathway Diagram -->
+            <section class="glass-panel pathway-card">
+                <div class="pathway-header">
+                    <h3 class="pathway-title">
+                        <i data-lucide="git-merge"></i>
+                        <span id="pathwayTitleText">G-단백질 결합 수용체(GPCR) 신호전달 경로</span>
+                    </h3>
+                </div>
+                <div class="svg-container" id="svgContainer">
+                    <!-- Dynamic SVGs are injected here via javascript -->
+                </div>
+            </section>
+
+            <!-- Real-time Chart.js Graph -->
+            <section class="glass-panel chart-card">
+                <div class="control-label">
+                    <span>실시간 생체 지표 모니터링 (Real-time Bio-metrics)</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="realtimeChart"></canvas>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Right Column: Info Card & Metrics -->
+        <aside class="right-column">
+            
+            <!-- Biochemical Information Card -->
+            <section class="glass-panel info-card">
+                <h3 class="info-header">
+                    <i data-lucide="dna"></i>
+                    <span>생화학적 프로필</span>
+                </h3>
+                
+                <!-- Organs involved -->
+                <div class="organ-map">
+                    <div class="organ-badge">
+                        <span class="organ-badge-label">분비 기관 (Origin)</span>
+                        <span class="organ-badge-value" id="secretionOrgan">
+                            <i data-lucide="factory"></i> 중뇌 흑질 / VTA
+                        </span>
+                    </div>
+                    <div class="organ-badge">
+                        <span class="organ-badge-label">표적 기관 (Target)</span>
+                        <span class="organ-badge-value" id="targetOrgan">
+                            <i data-lucide="target"></i> 전두엽 / 기저핵
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Molecular Step-by-Step mechanism -->
+                <div class="mech-steps" id="mechSteps">
+                    <!-- Javascript will render steps here -->
+                </div>
+            </section>
+
+            <!-- Downstream physiological metrics progress bars -->
+            <section class="glass-panel info-card">
+                <h3 class="info-header">
+                    <i data-lucide="heart-pulse"></i>
+                    <span>표적 생리 지표 반응 (Downstream Response)</span>
+                </h3>
+                
+                <div class="metrics-container" id="metricsContainer">
+                    <!-- Javascript will render indicators here -->
+                </div>
+            </section>
+
+            <!-- Clinical note & Pharmacological info -->
+            <section class="glass-panel info-card">
+                <h3 class="info-header">
+                    <i data-lucide="microscope"></i>
+                    <span>임상학적 & 약리학적 연계 (Clinical Notes)</span>
+                </h3>
+                
+                <div class="clinical-box">
+                    <div class="clinical-box-title">
+                        <i data-lucide="shield-alert"></i>
+                        <span id="clinicalTitle">관련 주요 임상 질환</span>
+                    </div>
+                    <div class="clinical-text" id="clinicalText">
+                        도파민의 분비 결핍 시 운동 장애(파킨슨병) 또는 인지 저하가 나타나며, 과다 분비 시에는 망상/환각(조현병) 또는 이상 운동 및 충동적 행동 장애가 유발됩니다.
+                    </div>
+                </div>
+            </section>
+
+        </aside>
+
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Database of Hormones & Neurotransmitters
+        const substances = {
+            dopamine: {
+                id: 'dopamine',
+                name: '도파민',
+                englishName: 'Dopamine (DA) — Catecholamine Neurotransmitter',
+                icon: 'brain',
+                origin: '중뇌 흑질 / VTA',
+                target: '전두엽 / 기저핵',
+                pathwayTitle: 'G-단백질 결합 수용체(D1/D2 GPCR) 신호전달 경로',
+                pathwayType: 'gpcr',
+                primaryColor: '#a855f7',
+                secondaryColor: '#14b8a6',
+                glowColor: 'rgba(168, 85, 247, 0.35)',
+                chartColor: '#a855f7',
+                clinicalTitle: '파킨슨병, ADHD & 조현병',
+                clinicalText: '흑질-선조체 경로의 도파민 소실은 파킨슨병(서동, 떨림)을 유발하며, 전두엽 피질의 도파민 결핍은 ADHD를 유발합니다. 반대로 중대뇌변연계 경로의 과도한 도파민 자극은 조현병(망상, 환각) 및 중독 상태를 일으킵니다.',
+                drugs: [
+                    { id: 'control', name: '대조군 (Control)', desc: '화합물 주입이 없는 상태입니다. 도파민 분비량에 비례하여 수용체 신호전달이 활성화됩니다.' },
+                    { id: 'haloperidol', name: '할로페리돌 (Haloperidol - D2 Antagonist)', desc: '대표적인 1세대 전형 항조현병 약물입니다. D2 수용체를 경쟁적으로 차단하여, 도파민 과다로 인한 망상/환각 등 양성 증상을 억제하지만 외체계부작용(파킨슨 유사 증상)을 초래할 수 있습니다.' },
+                    { id: 'cocaine', name: '코카인 (Cocaine - Reuptake Inhibitor)', desc: '시냅스 전 뉴런의 도파민 재흡수 수송체(DAT)를 억제하여 시냅스 간극의 도파민 농도를 비정상적으로 급격히 상승시킵니다. 수용체 전달을 극대화하여 조증에 버금가는 강력한 각성과 쾌감을 유발합니다.' }
+                ],
+                mechanism: [
+                    { title: '수용체 결합 (Ligand Binding)', desc: '도파민이 세포막의 GPCR(D1 또는 D2)에 결합하여 수용체의 입체구조 변화를 유발합니다.' },
+                    { title: 'G-단백질 삼량체 해리 (G-Protein Activation)', desc: 'GDP가 GTP로 교환되면서 Gαs 또는 Gαi 서브유닛이 βγ 서브유닛 복합체로부터 분리됩니다.' },
+                    { title: 'Adenylyl Cyclase 활성 조절', desc: 'D1 계열은 AC를 활성화하여 cAMP 생성을 증가시키는 반면, D2 계열은 AC를 억제하여 cAMP 농도를 낮춥니다.' },
+                    { title: 'PKA 활성화 및 표적 이온채널 조절', desc: '세포 내 cAMP 상승은 Protein Kinase A(PKA)를 활성화해 다양한 이온 통로 및 전사인자(CREB)를 인산화합니다.' }
+                ],
+                metrics: [
+                    { id: 'focus', label: '집중도 및 업무 기억 (Focus & Working Memory)', minVal: 20, maxVal: 95, normalVal: 85, lowState: '무기력/주의산만', normState: '고도의 인지 효율', highState: '강박증/산만' },
+                    { id: 'motivation', label: '동기부여 및 보상 반응 (Motivation & Reward)', minVal: 15, maxVal: 100, normalVal: 75, lowState: '의욕상실/우울', normState: '활력적/성취 지향', highState: '조증/충동 행동' },
+                    { id: 'motor', label: '운동 미세 조절 (Motor Coordination)', minVal: 30, maxVal: 95, normalVal: 90, lowState: '서동증/근육 강직', normState: '원활한 정밀 운동', highState: '틱 장애/이상 운동' }
+                ]
+            },
+            serotonin: {
+                id: 'serotonin',
+                name: '세로토닌',
+                englishName: 'Serotonin (5-HT) — Monoamine Neuromodulator',
+                icon: 'activity',
+                origin: '뇌간 봉선핵 / 장크롬친화세포',
+                target: '대뇌 피질, 변연계 및 위장관',
+                pathwayTitle: '5-HT 수용체(Gi/Gs/Gq GPCR) 신호전달 경로',
+                pathwayType: 'gpcr',
+                primaryColor: '#3b82f6',
+                secondaryColor: '#6366f1',
+                glowColor: 'rgba(59, 130, 246, 0.35)',
+                chartColor: '#3b82f6',
+                clinicalTitle: '우울증, 편두통 & 세로토닌 증후군',
+                clinicalText: '시냅스 간극 내 세로토닌의 결핍은 우울증 및 불면증과 직결됩니다. 세로토닌 조절 물질(SSRI 등)을 과다 복용할 시 근육 반사 항진, 고열, 오한 등을 동반하는 치명적인 세로토닌 증후군(Serotonin Syndrome)이 발생할 수 있습니다.',
+                drugs: [
+                    { id: 'control', name: '대조군 (Control)', desc: '약물 처치 없는 상태입니다. 인체 내부 봉선핵 및 장내 합성량에 따른 시냅스 작용이 수행됩니다.' },
+                    { id: 'fluoxetine', name: '플루오세틴 (Fluoxetine - SSRI)', desc: '프로작(Prozac)으로 널리 알려진 선택적 세로토닌 재흡수 억제제입니다. 시냅스 전 뉴런의 5-HTT 수송체를 차단해 세로토닌이 시냅스 간극에 더 오래 머물도록 하여 기분을 완화하고 우울증을 치료합니다.' },
+                    { id: 'ondansetron', name: '온단세트론 (Ondansetron - 5-HT3 Antagonist)', desc: '항암화학요법이나 수술 후 유발되는 심한 구토를 방지하는 약물입니다. 이온 통로형 수용체인 5-HT3 수용체를 특이적으로 차단하여 위장관에서 연수 화학수용체 유발 영역(CTZ)으로 가는 구토 자극 신호를 차단합니다.' }
+                ],
+                mechanism: [
+                    { title: '다양한 Receptor 결합', desc: '5-HT 수용체 패밀리(5-HT1~7)에 결합하며, 대다수는 GPCR이나 5-HT3는 Ligand-gated 이온통로입니다.' },
+                    { title: 'Gi 또는 Gq 단백질 활성', desc: '5-HT1은 Gi를 활성화하여 흥분성을 낮추고, 5-HT2는 Gq를 활성화하여 세포 내 Ca2+을 분비시킵니다.' },
+                    { title: '세컨드 메신저 증폭', desc: 'Gq 작용 시 PLC 활성화로 IP3와 DAG가 생성되고 소포체로부터 칼슘 이온이 세포질로 대량 분출됩니다.' },
+                    { title: '신경막 전위 변화', desc: '활성화된 칼슘/Calmodulin 의존 단백질 키나아제(CaMK) 등이 활성화되거나 과분극 이온 채널이 작동합니다.' }
+                ],
+                metrics: [
+                    { id: 'mood', label: '감정 상태 안정도 (Emotional Stability & Mood)', minVal: 10, maxVal: 95, normalVal: 80, lowState: '우울감/불안 장애', normState: '정서적 평온/만족', highState: '감정 둔마(Blunting)' },
+                    { id: 'sleep', label: '멜라토닌 전환 및 수면 상태 (Sleep Cycle & Sleep Quality)', minVal: 20, maxVal: 95, normalVal: 85, lowState: '불면증/수면 조절 이상', normState: '정상 깊은 수면', highState: '주간 졸음/기면 유사' },
+                    { id: 'gut', label: '위장관 평활근 연동운동 (GI Motility)', minVal: 20, maxVal: 98, normalVal: 70, lowState: '소화 불량/위장 정체', normState: '정상 소화 작용', highState: '설사/복통 (과민성 장)' }
+                ]
+            },
+            insulin: {
+                id: 'insulin',
+                name: '인슐린',
+                englishName: 'Insulin — Peptide Hormone',
+                icon: 'gem',
+                origin: '췌장 이자섬 β세포',
+                target: '골격근, 간세포 및 지방 조직',
+                pathwayTitle: '수용체 티로신 키나아제(RTK) 인산화 경로',
+                pathwayType: 'rtk',
+                primaryColor: '#10b981',
+                secondaryColor: '#34d399',
+                glowColor: 'rgba(16, 185, 129, 0.35)',
+                chartColor: '#10b981',
+                clinicalTitle: '당뇨병 (Diabetes Mellitus)',
+                clinicalText: '인슐린 분비 분비량이 완전히 고갈되면 제1형 당뇨병이, 과다 분비 및 만성 과부하로 수용체 감수성이 극단적으로 저하되면 제2형 당뇨병이 발생합니다. 두 상태 모두 포도당의 세포 흡수를 저해하여 만성 고혈당증과 사지 말단 궤양 등 합병증을 유발합니다.',
+                drugs: [
+                    { id: 'control', name: '대조군 (Control)', desc: '표준 상태입니다. 인슐린 농도에 따라 표적 조직 세포막으로의 포도당 수송체(GLUT4) 발현 속도가 제어됩니다.' },
+                    { id: 'metformin', name: '메트포르민 (Metformin - Sensitivity Enhancer)', desc: '간에서 포도당 신생합성을 억제하고 AMPK 경로를 자극하여 표적 세포의 인슐린 수용체 감수성을 비정상적으로 강화합니다. 인슐린 농도가 낮더라도 상대적으로 포도당 흡수를 촉진합니다.' },
+                    { id: 'diazoxide', name: '디아조사이드 (Diazoxide - Release Inhibitor)', desc: '췌장 β세포의 ATP-의존성 K+ 채널을 강제로 개방(Open)하여 칼슘 유입을 막고 인슐린 분비 과정을 차단합니다. 인슐린 분비 과다로 인한 인슐린종(Insulinoma) 또는 심각한 저혈당 상태를 교정할 때 처방합니다.' }
+                ],
+                mechanism: [
+                    { title: 'RTK Dimerization', desc: '인슐린이 세포막 외부의 두 α-서브유닛에 결합하여 수용체 단량체를 중합(Dimerization)시킵니다.' },
+                    { title: 'Autophosphorylation (자가인산화)', desc: '세포막 내부에 있는 β-서브유닛의 Tyrosine 잔기들이 교차 자가 인산화(Autophosphorylation)됩니다.' },
+                    { title: 'IRS-1 결합 및 PI3K 활성화', desc: '인산화된 수용체에 Insulin Receptor Substrate (IRS-1)가 결합해 인산화된 후, Phosphoinositide 3-kinase (PI3K)를 동원/활성시킵니다.' },
+                    { title: 'Akt 인산화 및 GLUT4 막 융합', desc: 'PI3K가 PIP3를 경유하여 Akt(Protein Kinase B)를 인산화하고, Akt는 세포질 안 소포 내에 머물던 포도당 수송체(GLUT4)를 세포막으로 이동시켜 융합시킵니다.' }
+                ],
+                metrics: [
+                    { id: 'bloodGlucose', label: '혈중 포도당 농도 (Blood Glucose Levels)', minVal: 400, maxVal: 40, normalVal: 90, lowState: '급성 당뇨병성 케톤산증', normState: '정상 혈당 공복(70~100mg/dL)', highState: '저혈당 쇼크/의식상실' }, // Note: Min/Max values are inverted because insulin reduces blood glucose
+                    { id: 'glucoseUptake', label: '세포 내 포도당 흡수율 (Cellular Glucose Uptake)', minVal: 5, maxVal: 100, normalVal: 70, lowState: '세포 기아 상태/에너지 고갈', normState: '항상성 유지 포도당 이용', highState: '과도한 흡수/급격한 저장' },
+                    { id: 'fatStorage', label: '간 및 지방 조직 지방 합성율 (Lipogenesis)', minVal: 5, maxVal: 95, normalVal: 50, lowState: '지방 분해 과다/케톤체 생성', normState: '적정 지방 축적 및 보존', highState: '지방간/비만 축적 촉진' }
+                ]
+            },
+            cortisol: {
+                id: 'cortisol',
+                name: '코르티솔',
+                englishName: 'Cortisol — Steroid Glucocorticoid',
+                icon: 'shield',
+                origin: '부신 피질 (Adrenal Cortex)',
+                target: '간, 면역세포, 골격근 및 뇌세포',
+                pathwayTitle: '세포질 내 수용체 핵내 전사(Nuclear Receptor) 경로',
+                pathwayType: 'nuclear',
+                primaryColor: '#f59e0b',
+                secondaryColor: '#fbbf24',
+                glowColor: 'rgba(245, 158, 11, 0.35)',
+                chartColor: '#f59e0b',
+                clinicalTitle: '쿠싱 증후군 & 에디슨병',
+                clinicalText: '부신 기능 손상으로 코르티솔 분비가 결핍되면 에디슨병(만성 피로, 저혈압)이 유발되며, 종양 등으로 비정상적인 과잉 분비가 지속되면 쿠싱 증후군(복부 비만, 문페이스, 얇은 피부, 고혈당, 심각한 면역 결핍)이 유발됩니다.',
+                drugs: [
+                    { id: 'control', name: '대조군 (Control)', desc: '처치가 가해지지 않은 표준 생체 상태입니다. 부신피질 자극 호르몬(ACTH) 경로에 의해 조절되는 천연 코르티솔만 작용합니다.' },
+                    { id: 'dexamethasone', name: '덱사메타손 (Dexamethasone - Strong Agonist)', desc: '천연 코르티솔보다 수십 배 강한 합성 글루코코르티코이드 수용체 작용제입니다. 강력한 세포질 GR 활성화를 유도하여 면역 신호를 강력하게 억제하지만 부신 피질 분비 축을 억제하여 외인성 내분비 위축을 유도하기도 합니다.' },
+                    { id: 'mifepristone', name: '미페프리스톤 (Mifepristone - GR Antagonist)', desc: '세포질 내의 Glucocorticoid Receptor(GR)에 호르몬 대신 결합하여 열충격단백질(HSP) 분리를 차단하고 핵 내로의 이동을 경쟁적으로 저해합니다. 코르티솔이 과잉 분비되어 생명이 위급한 중증 쿠싱 환자의 혈압 및 포도당 신생을 낮추는데 사용됩니다.' }
+                ],
+                mechanism: [
+                    { title: '단순 확산 세포막 통과', desc: '코르티솔은 스테로이드(지질용해성) 계열 호르몬이므로 세포막을 직접 단순 확산하여 통과합니다.' },
+                    { title: 'GR 수용체 결합 및 HSP 이탈', desc: '세포질 내부의 글루코코르티코이드 수용체(GR)에 결합하며, 이에 따라 상시 억제 결합하고 있던 열충격단백질(HSP) 복합체가 해리됩니다.' },
+                    { title: 'Homodimerization 및 핵 내부 수송', desc: '코르티솔과 결합한 GR 단량체 2개가 결합하여 이합체(Homodimer)를 이룬 뒤, 핵막 공(Nuclear Pore)을 통과하여 핵 내부로 들어갑니다.' },
+                    { title: 'DNA GRE 결합 및 mRNA 전사 조절', desc: 'DNA의 특정 타겟 염기서열인 GRE에 결합하여 PEPCK 등 당원 신생 유전자 합성을 촉진하거나 염기 복제 전사인자(NF-κB) 활성을 억제합니다.' }
+                ],
+                metrics: [
+                    { id: 'stressLevel', label: '전신 스트레스 반응 지표 (Systemic Stress Level)', minVal: 5, maxVal: 100, normalVal: 40, lowState: '무반응/만성 피로/저혈압', normState: '정상 스트레스 각성 및 방어', highState: '공황/심근 가부하/고혈압' },
+                    { id: 'immuneActivity', label: '림프구 면역 활성 지수 (Immune Activation Index)', minVal: 95, maxVal: 5, normalVal: 75, lowState: '과민성 자가면역 질환 위험', normState: '정상 림프구 방어 작용', highState: '면역 무방비/쉽게 감염됨' }, // Inverted: cortisol suppresses immunity
+                    { id: 'gluconeogenesis', label: '간세포 포도당 신생 합성 (Gluconeogenesis Rate)', minVal: 10, maxVal: 98, normalVal: 45, lowState: '공복 시 심한 저혈당 유발', normState: '혈당 완충용 포도당 공급', highState: '스테로이드성 당뇨/근위축' }
+                ]
+            },
+            epinephrine: {
+                id: 'epinephrine',
+                name: '에피네프린',
+                englishName: 'Epinephrine (Adrenaline) — Catecholamine Hormone',
+                icon: 'flame',
+                origin: '부신 수질 (Adrenal Medulla)',
+                target: '심장, 기관지 평활근 및 골격근 혈관',
+                pathwayTitle: 'β-아드레날린 수용체(Gs GPCR) 신호전달 경로',
+                pathwayType: 'gpcr',
+                primaryColor: '#ef4444',
+                secondaryColor: '#f87171',
+                glowColor: 'rgba(239, 68, 68, 0.35)',
+                chartColor: '#ef4444',
+                clinicalTitle: '아나필락시스 & 크롬친화세포종',
+                clinicalText: '급성 알레르기 쇼크(아나필락시스) 시 혈압 강하 및 기관지 협착을 해결하기 위한 필수 응급 구조 물질입니다. 반대로 부신 종양(크롬친화세포종) 환자는 극단적으로 에피네프린이 과다 분비되어 중증 발작성 고혈압과 빈맥, 고열 증상이 일어납니다.',
+                drugs: [
+                    { id: 'control', name: '대조군 (Control)', desc: '표준 상태입니다. 스트레스에 의해 급격히 유도되는 에피네프린 분비량에 비례하여 생리 현상(투쟁/도피)이 활성화됩니다.' },
+                    { id: 'propranolol', name: '프로프라놀롤 (Propranolol - Beta-Blocker)', desc: '비선택적 베타-아드레날린 수용체 길합제(Beta-blocker)입니다. 에피네프린이 수용체에 결합하는 것을 기계적으로 방지하여, 과도한 에피네프린 유입 환경에서도 혈압과 심박수가 비정상적으로 급증하는 것을 차단해 줍니다.' },
+                    { id: 'albuterol', name: '알부테롤 (Albuterol - Beta-2 Agonist)', desc: '강력한 선택적 β2 수용체 작용제입니다. 에피네프린 농도가 전무하더라도, 이 약물이 혈중 기관지 평활근 세포막의 β2 경로를 직접 켜서 신속하게 기관지 통로를 이완/확장시켜 줍니다.' }
+                ],
+                mechanism: [
+                    { title: 'β-아드레날린 수용체 결합', desc: '에피네프린이 세포 표면의 β1(심장) 또는 β2(기관지) Gs-단백질 결합 수용체에 결합합니다.' },
+                    { title: 'Gs 단백질 활성 및 αs 분리', desc: 'Gs 단백질의 αs 서브유닛이 활성화되어 복합체로부터 방출되고, 막 단백질인 Adenylyl Cyclase를 찾아 결합합니다.' },
+                    { title: 'cAMP 2차 전령 물질 생성', desc: 'Adenylyl Cyclase가 ATP를 고리형 AMP(cAMP)로 고속 변환하여 세포 내 농도를 폭발적으로 상승시킵니다.' },
+                    { title: 'PKA 및 칼슘 통로 활성화', desc: '상승한 cAMP가 PKA를 활성화해 L-type 칼슘 채널 및 근소포체 채널을 인산화하여 다량의 칼슘을 유리시켜 수축력을 증대시킵니다.' }
+                ],
+                metrics: [
+                    { id: 'heartRate', label: '심박수 및 수축력 (Heart Rate & Contractility)', minVal: 50, maxVal: 180, normalVal: 72, lowState: '서맥/심박출량 저하', normState: '정상 안정 시 심박', highState: '빈맥/부정맥 및 심계항진' },
+                    { id: 'broncho', label: '기관지 수축 및 확장 평활근 (Bronchial State)', minVal: 20, maxVal: 100, normalVal: 80, lowState: '기관지 경련/호흡곤란(천식)', normState: '정상적 호흡 환기량 유지', highState: '최대 기도 확장 및 환기량' },
+                    { id: 'alertness', label: '각성 상태 및 투쟁 반응 (Alertness / Fight-or-Flight)', minVal: 15, maxVal: 100, normalVal: 40, lowState: '반사 저하/기면', normState: '평온/적절한 환경 집중력', highState: '공황 발작/극심한 불안장애' }
+                ]
+            }
+        };
+
+        // Current App State
+        let currentSubstanceId = 'dopamine';
+        let currentSecretion = 100; // 0% to 200%
+        let currentDrugId = 'control';
+        let activeReceptorSignaling = 100; // Calculated based on secretion level and drugs
+        let myChart = null;
+        let chartTime = 0;
+        let chartDataPoints = {
+            time: [],
+            secretion: [],
+            signaling: [],
+            metric: []
+        };
+        let simulationInterval = null;
+
+        // Dom Elements
+        const substanceListEl = document.getElementById('substanceList');
+        const molIconWrapperEl = document.getElementById('molIconWrapper');
+        const molNameEl = document.getElementById('molName');
+        const molEnglishNameEl = document.getElementById('molEnglishName');
+        const secretionSliderEl = document.getElementById('secretionSlider');
+        const sliderValDisplayEl = document.getElementById('sliderValDisplay');
+        const pharmaDropdownEl = document.getElementById('pharmaDropdown');
+        const pharmaDescriptionEl = document.getElementById('pharmaDescription');
+        const pathwayTitleTextEl = document.getElementById('pathwayTitleText');
+        const svgContainerEl = document.getElementById('svgContainer');
+        const secretionOrganEl = document.getElementById('secretionOrgan');
+        const targetOrganEl = document.getElementById('targetOrgan');
+        const mechStepsEl = document.getElementById('mechSteps');
+        const metricsContainerEl = document.getElementById('metricsContainer');
+        const clinicalTitleEl = document.getElementById('clinicalTitle');
+        const clinicalTextEl = document.getElementById('clinicalText');
+
+        // Initialize App
+        function initApp() {
+            renderSubstanceMenu();
+            loadSubstance(currentSubstanceId);
+            initChart();
+            startSimulation();
+
+            secretionSliderEl.addEventListener('input', (e) => {
+                currentSecretion = parseInt(e.target.value);
+                updateSimulationValues();
+            });
+
+            pharmaDropdownEl.addEventListener('change', (e) => {
+                currentDrugId = e.target.value;
+                updateSimulationValues();
+            });
+            
+            // Render lucide icons
+            lucide.createIcons();
+        }
+
+        // Render Sidebar Menu
+        function renderSubstanceMenu() {
+            substanceListEl.innerHTML = '';
+            Object.values(substances).forEach(sub => {
+                const li = document.createElement('li');
+                li.className = 'substance-item';
+                li.innerHTML = `
+                    <button class="substance-btn ${sub.id === currentSubstanceId ? 'active' : ''}" id="btn-${sub.id}" onclick="selectSubstance('${sub.id}')">
+                        <div class="substance-info">
+                            <span class="substance-name">${sub.name}</span>
+                            <span class="substance-type">${sub.pathwayType.toUpperCase()} 경로</span>
+                        </div>
+                        <div class="status-dot" style="--accent-secondary: ${sub.secondaryColor}; --accent-primary: ${sub.primaryColor}"></div>
+                    </button>
+                `;
+                substanceListEl.appendChild(li);
+            });
+        }
+
+        // Handle Substance Selection
+        function selectSubstance(subId) {
+            document.querySelectorAll('.substance-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${subId}`).classList.add('active');
+            
+            loadSubstance(subId);
+        }
+
+        // Load data of selected substance
+        function loadSubstance(subId) {
+            currentSubstanceId = subId;
+            const sub = substances[subId];
+
+            // Reset drug selection to control
+            currentDrugId = 'control';
+            
+            // Set Color Themes
+            document.documentElement.style.setProperty('--accent-primary', sub.primaryColor);
+            document.documentElement.style.setProperty('--accent-secondary', sub.secondaryColor);
+            document.documentElement.style.setProperty('--accent-glow', sub.glowColor);
+
+            // Update Text Contents
+            molNameEl.innerText = sub.name;
+            molEnglishNameEl.innerText = sub.englishName;
+            pathwayTitleTextEl.innerText = sub.pathwayTitle;
+            secretionOrganEl.innerHTML = `<i data-lucide="factory"></i> ${sub.origin}`;
+            targetOrganEl.innerHTML = `<i data-lucide="target"></i> ${sub.target}`;
+            clinicalTitleEl.innerText = `관련 주요 임상 질환: ${sub.clinicalTitle}`;
+            clinicalTextEl.innerText = sub.clinicalText;
+
+            // Reset Slider
+            secretionSliderEl.value = 100;
+            currentSecretion = 100;
+
+            // Populate Drug Dropdown
+            pharmaDropdownEl.innerHTML = '';
+            sub.drugs.forEach(drug => {
+                const opt = document.createElement('option');
+                opt.value = drug.id;
+                opt.innerText = drug.name;
+                pharmaDropdownEl.appendChild(opt);
+            });
+            pharmaDropdownEl.value = currentDrugId;
+
+            // Update Brand Icon colors and general icons
+            molIconWrapperEl.innerHTML = `<i data-lucide="${sub.icon}"></i>`;
+
+            // Render Mechanism Steps
+            renderMechanismSteps(sub.mechanism);
+            
+            // Render metrics container
+            renderMetrics(sub.metrics);
+
+            // Ingest pathway SVG
+            renderPathwaySVG(sub.pathwayType);
+
+            // Update simulator calculations
+            updateSimulationValues();
+
+            // Clear chart history for new context
+            resetChartData();
+
+            // Re-render Icons
+            lucide.createIcons();
+        }
+
+        function renderMechanismSteps(steps) {
+            mechStepsEl.innerHTML = '';
+            steps.forEach((step, idx) => {
+                const item = document.createElement('div');
+                item.className = 'mech-step-item';
+                item.innerHTML = `
+                    <div class="mech-step-num">${idx + 1}</div>
+                    <div class="mech-step-content">
+                        <div class="mech-step-title">${step.title}</div>
+                        <div class="mech-step-desc">${step.desc}</div>
+                    </div>
+                `;
+                mechStepsEl.appendChild(item);
+            });
+        }
+
+        function renderMetrics(metrics) {
+            metricsContainerEl.innerHTML = '';
+            metrics.forEach(m => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'metric-bar-wrapper';
+                wrapper.innerHTML = `
+                    <div class="metric-header">
+                        <span class="metric-label" id="lbl-${m.id}">${m.label}</span>
+                        <span class="metric-state-text" id="state-${m.id}">정상</span>
+                    </div>
+                    <div class="metric-track">
+                        <div class="metric-fill" id="fill-${m.id}"></div>
+                    </div>
+                `;
+                metricsContainerEl.appendChild(wrapper);
+            });
+        }
+
+        // Set Slider level from ticks
+        function setSecretion(val) {
+            secretionSliderEl.value = val;
+            currentSecretion = val;
+            updateSimulationValues();
+        }
+
+        // Calculate physiological levels and update UI
+        function updateSimulationValues() {
+            const sub = substances[currentSubstanceId];
+            const activeDrug = sub.drugs.find(d => d.id === currentDrugId);
+            
+            pharmaDescriptionEl.innerText = activeDrug.desc;
+
+            // 1. Calculate active Receptor Signaling based on Drug interventions
+            let targetSignaling = currentSecretion; // base level is secretion percentage
+            
+            // Apply drug modifications to signaling
+            if (currentSubstanceId === 'dopamine') {
+                if (currentDrugId === 'haloperidol') {
+                    // Haloperidol blocks D2, drops effective signaling dramatically
+                    targetSignaling = targetSignaling * 0.15; 
+                } else if (currentDrugId === 'cocaine') {
+                    // Cocaine blocks reuptake, multiplies effective signaling
+                    targetSignaling = targetSignaling * 1.6 + 25; 
+                }
+            } else if (currentSubstanceId === 'serotonin') {
+                if (currentDrugId === 'fluoxetine') {
+                    // SSRI blocks reuptake, boosts signaling
+                    targetSignaling = targetSignaling * 1.5 + 15;
+                } else if (currentDrugId === 'ondansetron') {
+                    // Ondansetron blocks 5-HT3, lowers receptor activity
+                    targetSignaling = targetSignaling * 0.3;
+                }
+            } else if (currentSubstanceId === 'insulin') {
+                if (currentDrugId === 'metformin') {
+                    // Metformin enhances sensitivity, boosting response relative to insulin level
+                    targetSignaling = targetSignaling * 1.4 + 10;
+                } else if (currentDrugId === 'diazoxide') {
+                    // Diazoxide stops insulin release, driving effective level down
+                    targetSignaling = targetSignaling * 0.1;
+                }
+            } else if (currentSubstanceId === 'cortisol') {
+                if (currentDrugId === 'dexamethasone') {
+                    // Dexamethasone is an agonist, behaves as high cortisol signaling even with low secretion
+                    targetSignaling = Math.max(targetSignaling, 160);
+                } else if (currentDrugId === 'mifepristone') {
+                    // Mifepristone blocks receptor, lowering signaling
+                    targetSignaling = targetSignaling * 0.2;
+                }
+            } else if (currentSubstanceId === 'epinephrine') {
+                if (currentDrugId === 'propranolol') {
+                    // Beta-blocker drops effective signaling
+                    targetSignaling = targetSignaling * 0.15;
+                } else if (currentDrugId === 'albuterol') {
+                    // Beta-2 agonist acts directly, maintaining at least 140% signaling
+                    targetSignaling = Math.max(targetSignaling, 140);
+                }
+            }
+
+            // Cap signaling
+            activeReceptorSignaling = Math.min(Math.max(targetSignaling, 0), 200);
+
+            // Update slider display label
+            let stateName = '정상';
+            if (currentSecretion < 60) stateName = '결핍';
+            if (currentSecretion > 140) stateName = '과다';
+            sliderValDisplayEl.innerText = `${currentSecretion}% (${stateName})`;
+
+            // 2. Update Physiological indicators
+            sub.metrics.forEach(m => {
+                const fillEl = document.getElementById(`fill-${m.id}`);
+                const stateEl = document.getElementById(`state-${m.id}`);
+                
+                // Linear mapping from active receptor signaling (0-200) to metric range
+                let mappedVal = m.minVal + (activeReceptorSignaling / 200) * (m.maxVal - m.minVal);
+                
+                // Normalizing to a 0-100 percentage for UI rendering bar
+                let uiPercent = 0;
+                if (m.id === 'bloodGlucose') {
+                    // Blood glucose is represented as absolute value (mg/dL), map from 40 to 400
+                    uiPercent = ((400 - mappedVal) / (400 - 40)) * 100;
+                } else if (m.id === 'immuneActivity') {
+                    // Immune activation index maps from 5 to 95
+                    uiPercent = ((95 - mappedVal) / (95 - 5)) * 100;
+                } else {
+                    uiPercent = mappedVal;
+                }
+
+                uiPercent = Math.min(Math.max(uiPercent, 0), 100);
+                fillEl.style.width = `${uiPercent}%`;
+
+                // Update Status text
+                let metricState = 'state-normal';
+                let metricText = m.normState;
+
+                if (activeReceptorSignaling < 60) {
+                    metricState = 'state-warning';
+                    metricText = m.lowState;
+                } else if (activeReceptorSignaling > 140) {
+                    metricState = 'state-danger';
+                    metricText = m.highState;
+                }
+
+                stateEl.className = `metric-state-text ${metricState}`;
+                stateEl.innerText = `${metricText} (${Math.round(mappedVal)}${m.id === 'bloodGlucose' ? ' mg/dL' : '%'})`;
+            });
+
+            // 3. Update Pathway SVG Animation states
+            const svgGroup = document.getElementById('interactive-group');
+            if (svgGroup) {
+                if (activeReceptorSignaling > 60) {
+                    svgGroup.classList.add('svg-active');
+                } else {
+                    svgGroup.classList.remove('svg-active');
+                }
+            }
+
+            // Custom SVG Sub-elements modification based on signaling levels
+            updateSvgDetails();
+        }
+
+        // Render Vector SVGs based on Pathway Type
+        function renderPathwaySVG(type) {
+            let svgHtml = '';
+            
+            if (type === 'gpcr') {
+                svgHtml = `
+                    <svg class="pathway-svg" viewBox="0 0 500 300">
+                        <defs>
+                            <!-- Gradient for background cell -->
+                            <linearGradient id="cellGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#111827" stop-opacity="0.9"/>
+                                <stop offset="100%" stop-color="#1f2937" stop-opacity="0.95"/>
+                            </linearGradient>
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="3" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        <g id="interactive-group">
+                            <!-- Extracellular & Intracellular Region divider (Cell Membrane) -->
+                            <rect class="cell-membrane" x="0" y="100" width="500" height="24"/>
+                            
+                            <!-- Lipid heads (phospholipids) -->
+                            <g class="membrane-lipid">
+                                <circle cx="20" cy="100" r="4" /><line x1="20" y1="100" x2="20" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="50" cy="100" r="4" /><line x1="50" y1="100" x2="50" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="80" cy="100" r="4" /><line x1="80" y1="100" x2="80" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="110" cy="100" r="4" /><line x1="110" y1="100" x2="110" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="140" cy="100" r="4" /><line x1="140" y1="100" x2="140" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="170" cy="100" r="4" /><line x1="170" y1="100" x2="170" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="200" cy="100" r="4" /><line x1="200" y1="100" x2="200" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="230" cy="100" r="4" /><line x1="230" y1="100" x2="230" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="260" cy="100" r="4" /><line x1="260" y1="100" x2="260" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="290" cy="100" r="4" /><line x1="290" y1="100" x2="290" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="320" cy="100" r="4" /><line x1="320" y1="100" x2="320" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="350" cy="100" r="4" /><line x1="350" y1="100" x2="350" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="380" cy="100" r="4" /><line x1="380" y1="100" x2="380" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="410" cy="100" r="4" /><line x1="410" y1="100" x2="410" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="440" cy="100" r="4" /><line x1="440" y1="100" x2="440" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="470" cy="100" r="4" /><line x1="470" y1="100" x2="470" y2="124" stroke="#475569" stroke-width="1"/>
+                            </g>
+
+                            <!-- GPCR Receptor (7 Transmembrane Snake) -->
+                            <path class="receptor-glow" id="gpcrGlow" d="M 120 75 L 125 130 L 130 75 L 135 130 L 140 75 L 145 130 L 150 75 L 155 130" />
+                            <path class="receptor-base" id="gpcrBase" d="M 120 75 L 125 130 L 130 75 L 135 130 L 140 75 L 145 130 L 150 75 L 155 130" fill="none" stroke="#64748b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+                            <!-- Extracellular Ligand Molecules -->
+                            <g id="ligand-container">
+                                <circle class="ligand-dot" cx="80" cy="40" r="5" fill="var(--accent-primary)" />
+                                <circle class="ligand-dot" cx="135" cy="50" r="5" fill="var(--accent-primary)" id="bound-ligand" style="transition: transform 0.5s;" />
+                                <circle class="ligand-dot" cx="210" cy="35" r="5" fill="var(--accent-primary)" />
+                                <circle class="ligand-dot" cx="290" cy="45" r="5" fill="var(--accent-primary)" />
+                            </g>
+
+                            <!-- Antagonist/Agonist visualizer -->
+                            <polygon id="drug-molecule" points="135,25 142,32 142,42 135,49 128,42 128,32" fill="none" stroke="none" stroke-width="2" style="transition: all 0.5s; transform-origin: 135px 37px;" />
+
+                            <!-- G-Protein Complex (Alpha, Beta-Gamma) -->
+                            <!-- Resting state: bound to receptor at (140, 145) -->
+                            <g id="g-protein-complex">
+                                <circle class="g-protein-alpha" id="g-alpha" cx="140" cy="150" r="14" fill="#ef4444" stroke="#fff" stroke-width="1"/>
+                                <text class="g-protein-alpha" id="g-alpha-text" x="140" y="153" font-size="8" font-family="'Outfit'" fill="#fff" text-anchor="middle">Gα</text>
+                                
+                                <path class="g-protein-beta" id="g-betagamma" d="M 155 140 Q 165 145 170 155 Q 160 160 155 140" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+                                <text class="g-protein-beta" id="g-bg-text" x="163" y="152" font-size="6" fill="#fff" text-anchor="middle">βγ</text>
+                            </g>
+
+                            <!-- Adenylyl Cyclase (AC) / Phospholipase C (PLC) -->
+                            <rect class="adenylyl-cyclase effector-active" id="effectorAC" x="320" y="90" width="45" height="40" rx="8" fill="#475569" stroke="#64748b" />
+                            <text x="342" y="114" font-size="10" font-family="'Outfit'" font-weight="700" fill="#fff" text-anchor="middle" id="effectorLabel">AC</text>
+
+                            <!-- cAMP Second Messenger flow -->
+                            <g id="camp-container">
+                                <circle class="camp-particle" cx="330" cy="150" r="4" style="animation-delay: 0s" />
+                                <circle class="camp-particle" cx="350" cy="155" r="4" style="animation-delay: 0.3s" />
+                                <circle class="camp-particle" cx="340" cy="165" r="4" style="animation-delay: 0.6s" />
+                                <circle class="camp-particle" cx="360" cy="145" r="4" style="animation-delay: 0.9s" />
+                            </g>
+
+                            <!-- PKA (Protein Kinase A) / Downstream kinase -->
+                            <g id="kinasePKA" style="transition: transform 0.5s;">
+                                <circle cx="340" cy="230" r="20" fill="#334155" stroke="#475569" stroke-width="2" id="pkaMain"/>
+                                <text x="340" y="234" font-size="11" font-family="'Outfit'" font-weight="700" fill="#fff" text-anchor="middle" id="kinaseLabel">PKA</text>
+                            </g>
+
+                            <!-- Text labels for intracellular/extracellular -->
+                            <text x="15" y="25" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포외액 (Extracellular Space)</text>
+                            <text x="15" y="285" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포질 (Cytoplasm)</text>
+                        </g>
+                    </svg>
+                `;
+            } else if (type === 'rtk') {
+                svgHtml = `
+                    <svg class="pathway-svg" viewBox="0 0 500 300">
+                        <defs>
+                            <linearGradient id="membraneGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#111827" stop-opacity="0.9"/>
+                                <stop offset="100%" stop-color="#1f2937" stop-opacity="0.95"/>
+                            </linearGradient>
+                        </defs>
+                        <g id="interactive-group">
+                            <rect class="cell-membrane" x="0" y="100" width="500" height="24"/>
+                            
+                            <g class="membrane-lipid">
+                                <circle cx="20" cy="100" r="4" /><line x1="20" y1="100" x2="20" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="50" cy="100" r="4" /><line x1="50" y1="100" x2="50" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="80" cy="100" r="4" /><line x1="80" y1="100" x2="80" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="110" cy="100" r="4" /><line x1="110" y1="100" x2="110" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="140" cy="100" r="4" /><line x1="140" y1="100" x2="140" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="170" cy="100" r="4" /><line x1="170" y1="100" x2="170" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="200" cy="100" r="4" /><line x1="200" y1="100" x2="200" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="230" cy="100" r="4" /><line x1="230" y1="100" x2="230" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="260" cy="100" r="4" /><line x1="260" y1="100" x2="260" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="290" cy="100" r="4" /><line x1="290" y1="100" x2="290" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="320" cy="100" r="4" /><line x1="320" y1="100" x2="320" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="350" cy="100" r="4" /><line x1="350" y1="100" x2="350" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="380" cy="100" r="4" /><line x1="380" y1="100" x2="380" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="410" cy="100" r="4" /><line x1="410" y1="100" x2="410" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="440" cy="100" r="4" /><line x1="440" y1="100" x2="440" y2="124" stroke="#475569" stroke-width="1"/>
+                                <circle cx="470" cy="100" r="4" /><line x1="470" y1="100" x2="470" y2="124" stroke="#475569" stroke-width="1"/>
+                            </g>
+
+                            <!-- RTK Monomers (Left and Right) -->
+                            <!-- When active, they slide closer together -->
+                            <g id="rtk-monomer-left" style="transition: transform 0.5s;">
+                                <rect class="receptor-base" x="135" y="60" width="12" height="100" rx="4" fill="#475569" stroke="#64748b"/>
+                                <circle cx="141" cy="60" r="10" fill="#475569" stroke="#64748b" />
+                                <circle id="phos-l1" cx="130" cy="130" r="4" fill="#eab308" style="opacity:0; transition: opacity 0.5s;" />
+                                <circle id="phos-l2" cx="130" cy="145" r="4" fill="#eab308" style="opacity:0; transition: opacity 0.5s;" />
+                            </g>
+
+                            <g id="rtk-monomer-right" style="transition: transform 0.5s;">
+                                <rect class="receptor-base" x="165" y="60" width="12" height="100" rx="4" fill="#475569" stroke="#64748b"/>
+                                <circle cx="171" cy="60" r="10" fill="#475569" stroke="#64748b" />
+                                <circle id="phos-r1" cx="182" cy="130" r="4" fill="#eab308" style="opacity:0; transition: opacity 0.5s;" />
+                                <circle id="phos-r2" cx="182" cy="145" r="4" fill="#eab308" style="opacity:0; transition: opacity 0.5s;" />
+                            </g>
+
+                            <!-- Extracellular Insulin molecules -->
+                            <g id="ligand-container">
+                                <circle class="ligand-dot" cx="110" cy="35" r="5" fill="var(--accent-primary)" />
+                                <path d="M151,35 L156,43 L161,35 Z" fill="var(--accent-primary)" id="bound-ligand" style="transition: transform 0.5s;" />
+                                <circle class="ligand-dot" cx="220" cy="40" r="5" fill="var(--accent-primary)" />
+                            </g>
+
+                            <!-- Intracellular IRS-1 -->
+                            <rect class="effector-active" id="irs1" x="110" y="170" width="90" height="20" rx="6" fill="#334155" stroke="#475569" style="transition: all 0.5s;"/>
+                            <text x="155" y="184" font-size="9" font-family="'Outfit'" font-weight="700" fill="#fff" text-anchor="middle">IRS-1 / PI3K</text>
+
+                            <!-- Akt / PKB kinase -->
+                            <circle class="effector-active" id="akt" cx="155" cy="230" r="16" fill="#334155" stroke="#475569" style="transition: all 0.5s;"/>
+                            <text x="155" y="233" font-size="8" font-family="'Outfit'" font-weight="700" fill="#fff" text-anchor="middle">Akt</text>
+
+                            <!-- GLUT4 Storage Vesicle -->
+                            <!-- Translocates up towards membrane when active -->
+                            <g id="glut4-vesicle" style="transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);">
+                                <circle cx="360" cy="220" r="24" fill="none" stroke="#64748b" stroke-dasharray="3 3" stroke-width="2" />
+                                <rect x="345" y="210" width="8" height="20" rx="2" fill="#eab308" />
+                                <rect x="367" y="210" width="8" height="20" rx="2" fill="#eab308" />
+                            </g>
+
+                            <!-- Membranous GLUT4 channel (fuses when active) -->
+                            <g id="membrane-glut4" style="transition: opacity 0.5s; opacity: 0;">
+                                <rect x="400" y="94" width="22" height="36" rx="4" fill="#eab308" stroke="#fff" stroke-width="1.5" />
+                                <line x1="411" y1="94" x2="411" y2="130" stroke="#1e293b" stroke-width="2"/>
+                            </g>
+
+                            <!-- Extracellular glucose hexagons flowing in -->
+                            <g id="glucose-container">
+                                <polygon class="glucose-particle" points="411,35 418,40 418,50 411,55 404,50 404,40" />
+                                <polygon class="glucose-particle" points="411,35 418,40 418,50 411,55 404,50 404,40" style="animation-delay: 0.7s" />
+                            </g>
+
+                            <!-- Labels -->
+                            <text x="15" y="25" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포외액 (Extracellular Space)</text>
+                            <text x="15" y="285" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포질 (Cytoplasm)</text>
+                        </g>
+                    </svg>
+                `;
+            } else if (type === 'nuclear') {
+                svgHtml = `
+                    <svg class="pathway-svg" viewBox="0 0 500 300">
+                        <defs>
+                            <linearGradient id="nucGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.3"/>
+                                <stop offset="100%" stop-color="#311042" stop-opacity="0.5"/>
+                            </linearGradient>
+                        </defs>
+                        <g id="interactive-group">
+                            <!-- Cell Membrane on top -->
+                            <line x1="0" y1="40" x2="500" y2="40" stroke="#475569" stroke-width="3" stroke-dasharray="4 4" />
+                            <text x="15" y="25" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포외액</text>
+
+                            <!-- Nuclear Envelope with pore -->
+                            <path d="M 0 180 L 210 180 M 290 180 L 500 180" stroke="#475569" stroke-width="4" fill="none" />
+                            <text x="15" y="285" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">핵 내부 (Nucleus)</text>
+                            <text x="15" y="70" font-size="9" fill="var(--text-muted)" font-family="'Outfit'">세포질 (Cytoplasm)</text>
+
+                            <!-- Cortisol molecules passing through membrane -->
+                            <g id="cortisol-ligands">
+                                <circle class="ligand-dot" cx="120" cy="20" r="5" fill="var(--accent-primary)"/>
+                                <circle class="ligand-dot" cx="250" cy="35" r="5" fill="var(--accent-primary)"/>
+                                <circle class="ligand-dot" cx="380" cy="15" r="5" fill="var(--accent-primary)"/>
+                            </g>
+
+                            <!-- Cytoplasmic Glucocorticoid Receptor (GR) complex -->
+                            <!-- Translocates into the nucleus when active -->
+                            <g id="gr-complex" style="transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);">
+                                <!-- Receptor Monomer -->
+                                <rect class="receptor-base" x="225" y="90" width="50" height="24" rx="8" fill="#475569" stroke="#64748b" />
+                                <text x="250" y="105" font-size="9" font-family="'Outfit'" font-weight="700" fill="#fff" text-anchor="middle">GR</text>
+                                
+                                <!-- Heat Shock Proteins (HSP) bound -->
+                                <g id="hsp-shields" style="transition: all 0.5s;">
+                                    <circle cx="215" cy="102" r="9" fill="#1e293b" stroke="#ef4444" stroke-width="1" />
+                                    <text x="215" y="105" font-size="6" fill="#ef4444" font-weight="bold" text-anchor="middle">Hsp</text>
+                                    <circle cx="285" cy="102" r="9" fill="#1e293b" stroke="#ef4444" stroke-width="1" />
+                                    <text x="285" y="105" font-size="6" fill="#ef4444" font-weight="bold" text-anchor="middle">Hsp</text>
+                                </g>
+
+                                <!-- Bound Cortisol indicator -->
+                                <circle id="bound-cortisol" cx="250" cy="82" r="4" fill="var(--accent-primary)" style="opacity: 0; transition: opacity 0.5s;" />
+                            </g>
+
+                            <!-- DNA Strand in Nucleus -->
+                            <g id="dna-strand" class="effector-active" style="transition: all 0.5s;">
+                                <path d="M 100 240 Q 150 220 200 240 T 300 240 T 400 240" fill="none" stroke="#64748b" stroke-width="3" />
+                                <path d="M 100 248 Q 150 228 200 248 T 300 248 T 400 248" fill="none" stroke="#64748b" stroke-width="3" />
+                                <!-- Transcription promoter GRE region -->
+                                <rect x="230" y="226" width="40" height="26" fill="var(--accent-secondary)" fill-opacity="0.1" stroke="var(--accent-secondary)" stroke-dasharray="2 2" />
+                                <text x="250" y="265" font-size="7" fill="var(--text-muted)" text-anchor="middle">GRE</text>
+                            </g>
+
+                            <!-- Wavy mRNA transcript appearing from active transcription -->
+                            <path class="dna-rna-line" d="M 270 238 C 290 220 310 250 330 230 C 350 210 370 240 390 220" fill="none" stroke="var(--accent-secondary)" stroke-width="2" style="opacity:0;" id="mrna-strand" />
+                            <text class="dna-rna-line" x="350" y="210" font-size="7" fill="var(--accent-secondary)" style="opacity:0;" id="mrna-label">mRNA</text>
+                        </g>
+                    </svg>
+                `;
+            }
+            
+            svgContainerEl.innerHTML = svgHtml;
+        }
+
+        // Apply advanced modifications to SVGs dynamically based on variables
+        function updateSvgDetails() {
+            if (currentSubstanceId === 'dopamine' || currentSubstanceId === 'serotonin' || currentSubstanceId === 'epinephrine') {
+                const boundLigand = document.getElementById('bound-ligand');
+                const gAlpha = document.getElementById('g-alpha');
+                const gAlphaText = document.getElementById('g-alpha-text');
+                const gBetaGamma = document.getElementById('g-betagamma');
+                const gBgText = document.getElementById('g-bg-text');
+                const pka = document.getElementById('kinasePKA');
+                const pkaMain = document.getElementById('pkaMain');
+                const drugMol = document.getElementById('drug-molecule');
+
+                // Update Labels based on current substance
+                if (currentSubstanceId === 'serotonin') {
+                    document.getElementById('effectorLabel').innerText = activeReceptorSignaling > 120 && currentDrugId !== 'ondansetron' ? 'PLC' : 'AC';
+                    document.getElementById('kinaseLabel').innerText = 'CaMK';
+                } else {
+                    document.getElementById('effectorLabel').innerText = 'AC';
+                    document.getElementById('kinaseLabel').innerText = 'PKA';
+                }
+
+                // Handle Agonist/Antagonist drugs visual representation
+                if (currentDrugId !== 'control') {
+                    drugMol.setAttribute('fill', currentDrugId.includes('block') || currentDrugId.includes('haloperidol') || currentDrugId.includes('ondansetron') ? '#ef4444' : '#10b981');
+                    drugMol.setAttribute('stroke', '#fff');
+                    
+                    // Move drug to binding pocket
+                    drugMol.style.transform = 'translate(0px, 45px)';
+                    if (boundLigand) boundLigand.style.transform = 'translate(-40px, -20px)'; // displace ligand
+                } else {
+                    drugMol.setAttribute('fill', 'none');
+                    drugMol.setAttribute('stroke', 'none');
+                    drugMol.style.transform = 'translate(0, 0)';
+                    if (boundLigand) boundLigand.style.transform = 'translate(0, 0)';
+                }
+
+                // G-Protein dissociation animation
+                if (activeReceptorSignaling > 60) {
+                    if (gAlpha) {
+                        gAlpha.style.transform = 'translate(100px, -20px)'; // move to Effector (AC)
+                        gAlphaText.style.transform = 'translate(100px, -20px)';
+                    }
+                    if (gBetaGamma) {
+                        gBetaGamma.style.transform = 'translate(20px, -30px)'; // slide slightly away
+                        gBgText.style.transform = 'translate(20px, -30px)';
+                    }
+                    if (pka) pka.style.transform = 'scale(1.1)';
+                    if (pkaMain) {
+                        pkaMain.setAttribute('stroke', 'var(--accent-secondary)');
+                        pkaMain.setAttribute('fill', 'var(--accent-glow)');
+                    }
+                } else {
+                    if (gAlpha) {
+                        gAlpha.style.transform = 'translate(0px, 0px)';
+                        gAlphaText.style.transform = 'translate(0px, 0px)';
+                    }
+                    if (gBetaGamma) {
+                        gBetaGamma.style.transform = 'translate(0px, 0px)';
+                        gBgText.style.transform = 'translate(0px, 0px)';
+                    }
+                    if (pka) pka.style.transform = 'scale(1)';
+                    if (pkaMain) {
+                        pkaMain.setAttribute('stroke', '#475569');
+                        pkaMain.setAttribute('fill', '#334155');
+                    }
+                }
+            } else if (currentSubstanceId === 'insulin') {
+                const leftMon = document.getElementById('rtk-monomer-left');
+                const rightMon = document.getElementById('rtk-monomer-right');
+                const pl1 = document.getElementById('phos-l1');
+                const pl2 = document.getElementById('phos-l2');
+                const pr1 = document.getElementById('phos-r1');
+                const pr2 = document.getElementById('phos-r2');
+                const boundLigand = document.getElementById('bound-ligand');
+                const irs1 = document.getElementById('irs1');
+                const akt = document.getElementById('akt');
+                const glut4Vesicle = document.getElementById('glut4-vesicle');
+                const membraneGlut4 = document.getElementById('membrane-glut4');
+
+                if (activeReceptorSignaling > 60) {
+                    // Dimerize (Slide closer)
+                    leftMon.style.transform = 'translateX(10px)';
+                    rightMon.style.transform = 'translateX(-10px)';
+                    if (boundLigand) boundLigand.style.transform = 'translate(5px, 20px)';
+                    
+                    // Show phosphate groups
+                    pl1.style.opacity = '1';
+                    pl2.style.opacity = '1';
+                    pr1.style.opacity = '1';
+                    pr2.style.opacity = '1';
+
+                    // Activate IRS-1 and Akt
+                    irs1.setAttribute('fill', 'var(--accent-glow)');
+                    irs1.setAttribute('stroke', 'var(--accent-secondary)');
+                    akt.setAttribute('fill', 'var(--accent-glow)');
+                    akt.setAttribute('stroke', 'var(--accent-secondary)');
+
+                    // Translocate Vesicle (Upward) and show channel open
+                    glut4Vesicle.style.transform = 'translate(45px, -90px)';
+                    membraneGlut4.style.opacity = '1';
+                } else {
+                    leftMon.style.transform = 'translateX(0)';
+                    rightMon.style.transform = 'translateX(0)';
+                    if (boundLigand) boundLigand.style.transform = 'translate(0, 0)';
+                    
+                    pl1.style.opacity = '0';
+                    pl2.style.opacity = '0';
+                    pr1.style.opacity = '0';
+                    pr2.style.opacity = '0';
+
+                    irs1.setAttribute('fill', '#334155');
+                    irs1.setAttribute('stroke', '#475569');
+                    akt.setAttribute('fill', '#334155');
+                    akt.setAttribute('stroke', '#475569');
+
+                    glut4Vesicle.style.transform = 'translate(0, 0)';
+                    membraneGlut4.style.opacity = '0';
+                }
+            } else if (currentSubstanceId === 'cortisol') {
+                const grComplex = document.getElementById('gr-complex');
+                const hspShields = document.getElementById('hsp-shields');
+                const boundCort = document.getElementById('bound-cortisol');
+                const mrnaStrand = document.getElementById('mrna-strand');
+                const mrnaLabel = document.getElementById('mrna-label');
+                const dna = document.getElementById('dna-strand');
+
+                if (activeReceptorSignaling > 60) {
+                    // Cortisol binds, HSP releases
+                    hspShields.style.opacity = '0';
+                    hspShields.style.transform = 'translateY(-20px) scale(0.6)';
+                    boundCort.style.opacity = '1';
+
+                    // Translocate GR Homodimer to Nucleus (Downwards)
+                    grComplex.style.transform = 'translate(0px, 115px)';
+                    
+                    // Activate DNA GRE and transcribe mRNA
+                    dna.setAttribute('stroke', 'var(--accent-secondary)');
+                    mrnaStrand.style.opacity = '1';
+                    mrnaLabel.style.opacity = '1';
+                } else {
+                    hspShields.style.opacity = '1';
+                    hspShields.style.transform = 'translateY(0) scale(1)';
+                    boundCort.style.opacity = '0';
+                    
+                    grComplex.style.transform = 'translate(0px, 0px)';
+                    
+                    dna.setAttribute('stroke', '#64748b');
+                    mrnaStrand.style.opacity = '0';
+                    mrnaLabel.style.opacity = '0';
+                }
+            }
+        }
+
+        // Real-time chart configuration and handling
+        function initChart() {
+            const ctx = document.getElementById('realtimeChart').getContext('2d');
+            
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartDataPoints.time,
+                    datasets: [
+                        {
+                            label: '분비 농도 (%)',
+                            data: chartDataPoints.secretion,
+                            borderColor: '#9ca3af',
+                            borderWidth: 1.5,
+                            borderDash: [4, 4],
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 0
+                        },
+                        {
+                            label: '활성 수용체 신호 강도 (%)',
+                            data: chartDataPoints.signaling,
+                            borderColor: substances[currentSubstanceId].primaryColor,
+                            borderWidth: 3,
+                            fill: true,
+                            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                            tension: 0.3,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#f3f4f6',
+                                font: {
+                                    size: 10,
+                                    family: 'Inter'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: 200,
+                            ticks: {
+                                stepSize: 50,
+                                color: '#9ca3af',
+                                font: {
+                                    size: 9
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function resetChartData() {
+            chartTime = 0;
+            chartDataPoints.time = [];
+            chartDataPoints.secretion = [];
+            chartDataPoints.signaling = [];
+            
+            // Populate initial empty coordinates
+            for (let i = 0; i < 30; i++) {
+                chartDataPoints.time.push(chartTime);
+                chartDataPoints.secretion.push(currentSecretion);
+                chartDataPoints.signaling.push(activeReceptorSignaling);
+                chartTime += 0.5;
+            }
+
+            if (myChart) {
+                myChart.data.datasets[1].borderColor = substances[currentSubstanceId].primaryColor;
+                myChart.update();
+            }
+        }
+
+        function startSimulation() {
+            if (simulationInterval) clearInterval(simulationInterval);
+            
+            simulationInterval = setInterval(() => {
+                // Add noise for realistic physiological fluctuations
+                const noise = (Math.random() - 0.5) * 4;
+                const noisySecretion = Math.min(Math.max(currentSecretion + noise, 0), 200);
+                
+                // Add drug calculation to signaling level
+                const baseSignaling = activeReceptorSignaling;
+                const noisySignaling = Math.min(Math.max(baseSignaling + (Math.random() - 0.5) * 2, 0), 200);
+
+                // Push new data point and shift queue
+                chartDataPoints.time.push(chartTime);
+                chartDataPoints.secretion.push(noisySecretion);
+                chartDataPoints.signaling.push(noisySignaling);
+
+                chartDataPoints.time.shift();
+                chartDataPoints.secretion.shift();
+                chartDataPoints.signaling.shift();
+
+                chartTime += 0.5;
+
+                if (myChart) {
+                    myChart.update();
+                }
+            }, 500);
+        }
+
+        // Initialize application on load
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
